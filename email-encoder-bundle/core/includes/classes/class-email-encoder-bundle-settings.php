@@ -43,7 +43,7 @@ class Email_Encoder_Settings {
 		'html_placeholder_tag' => '/placeholder="([^"]*)"/i',
 	];
 
-	private array $settings;
+	private array $settings = [];
 	private string $version;
 	private string $email_image_secret;
 	private array $template_tags= [
@@ -93,7 +93,7 @@ class Email_Encoder_Settings {
 	 /**
 	  * Load the settings for our admin settings page
 	  *
-	  * @return array - An array with all available settings and filled values
+	  * @return void
 	  */
 	public function load_settings() {
 
@@ -360,7 +360,7 @@ class Email_Encoder_Settings {
 	/**
 	 * Get Woocommerce variation attribute regex
 	 *
-	 * @param boolean $include
+	 * @param boolean $single
 	 * @return string
 	 */
 	public function get_soft_attribute_regex( $single = null ) {
@@ -439,7 +439,7 @@ class Email_Encoder_Settings {
 	/**
 	 * Helper function to reload the settings
 	 *
-	 * @return array - An array of all available settings
+	 * @return void
 	 */
 	public function reload_settings() {
 		$this->load_settings();
@@ -455,6 +455,14 @@ class Email_Encoder_Settings {
 	 * @return mixed - the default string
 	 */
 	public function get_setting( $slug = '', $single = false, $group = '' ) {
+
+        // temporary fix to resolve calls before class is properly booted
+        if ( $this->settings === [] ) {
+            error_log( 'EmailEncoderBundle: Method get_settings() is accessed too early!' );
+            $this->load_settings();
+        }
+        // end of fix
+
 
 		$return = $this->settings;
 
