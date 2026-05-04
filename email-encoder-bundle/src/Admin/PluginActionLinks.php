@@ -2,6 +2,8 @@
 
 namespace OnlineOptimisation\EmailEncoderBundle\Admin;
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 use OnlineOptimisation\EmailEncoderBundle\Traits\PluginHelper;
 
 class PluginActionLinks
@@ -15,6 +17,10 @@ class PluginActionLinks
     }
 
 
+    /**
+     * @param array< int|string, string > $links
+     * @return array< int|string, string >
+     */
     public function handle( array $links ): array
     {
         $settings_link = sprintf( '<a href="%s">%s</a>', admin_url( 'options-general.php?page=' . $this->getPageName() ), __( 'Settings', 'email-encoder-bundle' ) );

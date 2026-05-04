@@ -2,6 +2,8 @@
 
 namespace OnlineOptimisation\EmailEncoderBundle\Front;
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 use OnlineOptimisation\EmailEncoderBundle\Traits\PluginHelper;
 
 class FrontBuffering
@@ -16,7 +18,7 @@ class FrontBuffering
 
 
 
-    public function buffer_final_output()
+    public function buffer_final_output(): void
     {
         if ( defined( 'WP_CLI' ) || defined( 'DOING_CRON' ) ) {
             return;
@@ -52,7 +54,12 @@ class FrontBuffering
      */
     public function apply_content_filter( $content )
     {
-        $filteredContent = apply_filters( $this->getFinalOutputBufferHook(), $content );
+        $hook = $this->getFinalOutputBufferHook();
+        if ( $hook === '' ) {
+            return $content;
+        }
+
+        $filteredContent = apply_filters( $hook, $content );
 
         // remove filters after applying to prevent multiple applies
         remove_all_filters( $this->getFinalOutputBufferHook() );

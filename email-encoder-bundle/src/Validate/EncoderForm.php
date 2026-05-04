@@ -27,20 +27,7 @@ class EncoderForm
      */
     public function get_encoder_form()
     {
-        $powered_by_setting = (bool) $this->getSetting( 'powered_by', true, 'encoder_form' );
-
-        //shorten circle
-        if (
-            ! $this->helper()->is_page( $this->getPageName() )
-            && ! (bool) $this->getSetting( 'encoder_form_frontend', true, 'encoder_form' )
-        ) {
-            return apply_filters('eeb_form_content_inactive', '' );
-        }
-
-        $powered_by = '';
-        if ($powered_by_setting) {
-            $powered_by .= '<p class="powered-by">' . __('Powered by free', 'email-encoder-bundle') . ' <a rel="external" href="https://wordpress.org/plugins/email-encoder-bundle/">Email Encoder</a></p>';
-        }
+        $powered_by = '<p class="powered-by">' . __('Powered by free', 'email-encoder-bundle') . ' <a rel="external" href="https://wordpress.org/plugins/email-encoder-bundle/">Email Encoder</a></p>';
 
         $smethods = array(
             'rot13' => __( 'Rot13 (Javascript)', 'email-encoder-bundle' ),
@@ -66,60 +53,92 @@ class EncoderForm
 
         extract( $labels );
 
-        $form = <<<FORM
-<div class="eeb-form">
-    <form>
-        <fieldset>
-            <div class="input">
-                <table>
-                <tbody>
-                    <tr>
-                        <th><label for="eeb-email">{$email}</label></th>
-                        <td><input type="text" class="regular-text" id="eeb-email" name="eeb-email" /></td>
-                    </tr>
-                    <tr>
-                        <th><label for="eeb-display">{$display}</label></th>
-                        <td><input type="text" class="regular-text" id="eeb-display" name="eeb-display" /></td>
-                    </tr>
-                    <tr>
-                        <th>{$mailto}</th>
-                        <td><span class="eeb-example"></span></td>
-                    </tr>
-                    <tr>
-                        <th><label for="eeb-encode-method">{$method}</label></th>
-                        <td><select id="eeb-encode-method" name="eeb-encode-method" class="postform">
-                                {$method_options}
-                            </select>
-                            <input type="button" id="eeb-ajax-encode" name="eeb-ajax-encode" value="{$create_link}" />
-                        </td>
-                    </tr>
-                </tbody>
-                </table>
-            </div>
-            <div class="eeb-output">
-                <table>
-                <tbody>
-                    <tr>
-                        <th><label for="eeb-encoded-output">{$output}</label></th>
-                        <td><textarea class="large-text node" id="eeb-encoded-output" name="eeb-encoded-output" cols="50" rows="4"></textarea></td>
-                    </tr>
-                </tbody>
-                </table>
-            </div>
-            {$powered_by}
-        </fieldset>
-    </form>
-</div>
-FORM;
+        $form = '<div class="eeb-form">'
+            . '<form>'
+            . '<fieldset>'
+            . '<div class="input">'
+            . '<table>'
+            . '<tbody>'
+            . '<tr>'
+            . '<th><label for="eeb-email">' . $email . '</label></th>'
+            . '<td><input type="text" class="regular-text" id="eeb-email" name="eeb-email" /></td>'
+            . '</tr>'
+            . '<tr>'
+            . '<th><label for="eeb-display">' . $display . '</label></th>'
+            . '<td><input type="text" class="regular-text" id="eeb-display" name="eeb-display" /></td>'
+            . '</tr>'
+            . '<tr>'
+            . '<th>' . $mailto . '</th>'
+            . '<td><span class="eeb-example"></span></td>'
+            . '</tr>'
+            . '<tr>'
+            . '<th><label for="eeb-encode-method">' . $method . '</label></th>'
+            . '<td><select id="eeb-encode-method" name="eeb-encode-method" class="postform">'
+            . $method_options
+            . '</select>'
+            . '<input type="button" id="eeb-ajax-encode" name="eeb-ajax-encode" value="' . $create_link . '" />'
+            . '</td>'
+            . '</tr>'
+            . '</tbody>'
+            . '</table>'
+            . '</div>'
+            . '<div class="eeb-output">'
+            . '<table>'
+            . '<tbody>'
+            . '<tr>'
+            . '<th><label for="eeb-encoded-output">' . $output . '</label></th>'
+            . '<td><textarea class="large-text node" id="eeb-encoded-output" name="eeb-encoded-output" cols="50" rows="4"></textarea></td>'
+            . '</tr>'
+            . '</tbody>'
+            . '</table>'
+            . '</div>'
+            . $powered_by
+            . '</fieldset>'
+            . '</form>'
+            . '</div>';
 
-         // apply filters
-        $form = apply_filters('eeb_form_content', $form, $labels, $powered_by_setting );
+         // apply filters — third arg kept as `true` for back-compat with existing
+         // `eeb_form_content` filter callbacks that read it as the powered_by toggle.
+        $form = apply_filters('eeb_form_content', $form, $labels, true );
+
+        $this->enqueue_form_script();
 
         return $form;
     }
 
 
-    public function is_post_excluded( $post_id = null )
+    /**
+     * Lazy-enqueue the encoder form's submit-handler script. Called from
+     * get_encoder_form() so the script loads exactly when the form
+     * renders — no matter the surface (shortcode in a widget, FSE block,
+     * eeb_form() in a theme file, etc.). wp_enqueue_script is idempotent,
+     * so the admin-side admin_enqueue_scripts path still works fine.
+     */
+    private function enqueue_form_script(): void
+    {
+        $file = EEB_PLUGIN_DIR . 'core/includes/assets/js/encoder-form.js';
+        $ver  = file_exists( $file ) ? filemtime( $file ) : false;
+
+        wp_enqueue_script(
+            'eeb-js-ajax-ef',
+            EEB_PLUGIN_URL . 'core/includes/assets/js/encoder-form.js',
+            [ 'jquery' ],
+            (string) $ver,
+            true
+        );
+
+        wp_localize_script( 'eeb-js-ajax-ef', 'eeb_ef', [
+            'ajaxurl'  => admin_url( 'admin-ajax.php' ),
+            'security' => wp_create_nonce( 'eeb_form' ),
+        ] );
+    }
+
+
+    /**
+     * @param int $post_id
+     * @return bool
+     */
+    public function is_post_excluded( ?int $post_id = null )
     {
 
         $return = false;
@@ -137,12 +156,10 @@ FORM;
 
             $exclude_pages = explode( ',', $skip_posts );
 
-            // if ( is_array( $exclude_pages ) ) {
-
-            $exclude_pages_validated = array();
+            $exclude_pages_validated = [];
 
             foreach ( $exclude_pages as $spost_id ) {
-                $spost_id = trim($spost_id);
+                $spost_id = trim( $spost_id );
                 if ( is_numeric( $spost_id ) ) {
                     $exclude_pages_validated[] = intval( $spost_id );
                 }
@@ -152,18 +169,16 @@ FORM;
                 $return = true;
             }
 
-            // }
-
         }
 
-        return apply_filters( 'eeb/validate/is_post_excluded', $return, $post_id, $skip_posts );
+        return (bool) apply_filters( 'eeb/validate/is_post_excluded', $return, $post_id, $skip_posts );
     }
 
     /**
      * Filter if to exclude specific URL parameters from filtering
      *
      * @since 2.2.0
-     * @param array $parameters
+     * @param array< string > $parameters
      * @return boolean
      */
     public function is_query_parameter_excluded( $parameters = null )
@@ -194,6 +209,6 @@ FORM;
 
         }
 
-        return apply_filters( 'eeb/validate/is_query_parameter_excluded', $return, $parameters );
+        return (bool) apply_filters( 'eeb/validate/is_query_parameter_excluded', $return, $parameters );
     }
 }

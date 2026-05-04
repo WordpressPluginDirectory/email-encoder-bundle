@@ -24,7 +24,12 @@ class Encoding
      * ######################
      */
 
-    public function temp_encode_at_symbol( $content, $decode = false )
+    /**
+     * @param string $content
+     * @param bool $decode
+     * @return string
+     */
+    public function temp_encode_at_symbol( string $content, bool $decode = false )
     {
         if ( $decode ) {
             return str_replace( $this->at_identifier, '@', $content );
@@ -33,14 +38,14 @@ class Encoding
         return str_replace( '@', $this->at_identifier, $content );
     }
 
-      /**
+    /**
      * ASCII method
      *
      * @param string $value
      * @param string $protection_text
      * @return string
      */
-    public function encode_ascii($value, $protection_text)
+    public function encode_ascii( $value, $protection_text )
     {
         $mail_link = $value;
 
@@ -53,7 +58,7 @@ class Encoding
             $l = substr($mail_link, $i, 1);
 
             if (strpos($mail_letters, $l) === false) {
-                $p = rand(0, strlen($mail_letters));
+                $p = wp_rand(0, strlen($mail_letters));
                 $mail_letters = substr($mail_letters, 0, $p) .
                 $l . substr($mail_letters, $p, strlen($mail_letters));
             }
@@ -72,7 +77,7 @@ class Encoding
         $mail_indices = str_replace("\\", "\\\\", $mail_indices);
         $mail_indices = str_replace("\"", "\\\"", $mail_indices);
 
-        $element_id = 'eeb-' . mt_rand( 0, 1000000 ) . '-' . mt_rand(0, 1000000);
+        $element_id = 'eeb-' . wp_rand( 0, 1000000 ) . '-' . wp_rand(0, 1000000);
 
         return '<span id="' . $element_id . '"></span>'
                 . '<script type="text/javascript">'
@@ -83,7 +88,7 @@ class Encoding
                 . '}document.getElementById("' . $element_id . '").innerHTML = decodeURIComponent(o);' // decode at the end, this way special chars can be supported
                 . '}());'
                 . '</script><noscript>'
-                . $protection_text
+                . esc_html( $protection_text )
                 . '</noscript>'
         ;
     }
@@ -97,17 +102,18 @@ class Encoding
      */
     public function encode_escape( $value, $protection_text )
     {
-        $element_id = 'eeb-' . mt_rand( 0, 1000000 ) . '-' . mt_rand( 0, 1000000 );
-        $string = '\'' . $value . '\'';
+        $element_id = 'eeb-' . wp_rand( 0, 1000000 ) . '-' . wp_rand( 0, 1000000 );
 
         //Validate escape sequences
-        $string = preg_replace('/\s+/S', " ", $string);
+        $string = preg_replace('/\s+/S', " ", $value) ?? '';
 
         // break string into array of characters, we can't use string_split because its php5 only
         $split = preg_split( '||', $string );
-        $out = '<span id="' . $element_id . '"></span>'
-            . '<script type="text/javascript">' . 'document.getElementById("' . $element_id . '").innerHTML = ev' . 'al(decodeURIComponent("';
+        $out = '<span id="' . esc_attr( $element_id ) . '"></span>'
+            . '<script type="text/javascript">'
+            . 'document.getElementById("' . $element_id . '").innerHTML = decodeURIComponent("';
 
+        if ( is_array( $split ) )
         foreach ( $split as $c ) {
             // preg split will return empty first and last characters, check for them and ignore
             if ( ! empty( $c ) || $c === '0' ) {
@@ -115,8 +121,9 @@ class Encoding
             }
         }
 
-        $out .= '"))' . '</script><noscript>'
-             . $protection_text
+        $out .= '");'
+             . '</script><noscript>'
+             . esc_html( $protection_text )
              . '</noscript>';
 
         return $out;
@@ -126,6 +133,7 @@ class Encoding
      * Encode email in input field
      * @param string $input
      * @param string $email
+     * @param bool $strongEncoding
      * @return string
      */
     public function encode_input_field( $input, $email, $strongEncoding = false )
@@ -146,7 +154,7 @@ class Encoding
 
         // add data-enc-email after "<input"
         $inputWithDataAttr = substr( $input, 0, 6 );
-        $inputWithDataAttr .= ' data-enc-email="' . $this->get_encoded_email( $email ) . '"';
+        $inputWithDataAttr .= ' data-enc-email="' . esc_attr( $this->get_encoded_email( $email ) ) . '"';
         $inputWithDataAttr .= substr( $input, 6 );
 
         // mark link as successfullly encoded (for admin users)
@@ -174,6 +182,7 @@ class Encoding
         $encEmail = html_entity_decode( $encEmail );
 
         // rot13 encoding
+        // phpcs:ignore Generic.PHP.ForbiddenFunctions.Found -- str_rot13 is intentional for email obfuscation
         $encEmail = str_rot13( $encEmail );
 
         // replace @
@@ -191,7 +200,7 @@ class Encoding
     public function get_encoded_email_icon( $text = 'Email encoded successfully!' )
     {
 
-        $html = '<i class="eeb-encoded dashicons-before dashicons-lock" title="' . __( $text, 'email-encoder-bundle' ) . '"></i>';
+        $html = '<i class="eeb-encoded dashicons-before dashicons-lock" title="' . esc_attr( $text ) . '"></i>';
 
         return apply_filters( 'eeb/validate/get_encoded_email_icon', $html, $text );
     }
@@ -200,15 +209,20 @@ class Encoding
      * Create a protected email
      *
      * @param string $display
-     * @param array $attrs Optional
+     * @param array< string, string > $attrs
+     * @param string $protection_method
      * @return string
      */
-    public function create_protected_mailto( $display, $attrs = array(), $protection_method = null )
+    public function create_protected_mailto( $display, $attrs = [], $protection_method = null )
     {
         $email     = '';
         $class_ori = ( empty( $attrs['class'] ) ) ? '' : $attrs['class'];
         $custom_class = (string) $this->getSetting( 'class_name', true );
         $show_encoded_check = (string) $this->getSetting( 'show_encoded_check', true );
+
+        if ( ! empty( $attrs['href'] ) && stripos( $attrs['href'], 'mailto:' ) === 0 ) {
+            $email = substr( $attrs['href'], 7 );
+        }
 
         // set user-defined class
         if ( $custom_class !== '' && strpos( $class_ori, $custom_class ) === false ) {
@@ -231,18 +245,15 @@ class Encoding
                 if ( $protection_method === 'without_javascript' ) {
                     $link .= $key . '="' . antispambot( $value ) . '" ';
                 } else {
-                    // get email from href
-                    $email = substr($value, 7);
-
                     $encoded_email = $this->get_encoded_email( $email );
 
                     // set attrs
                     $link .= 'href="javascript:;" ';
-                    $link .= 'data-enc-email="' . $encoded_email . '" ';
+                    $link .= 'data-enc-email="' . esc_attr( $encoded_email ) . '" ';
                 }
 
             } else {
-                $link .= $key . '="' . $value . '" ';
+                $link .= esc_attr( $key ) . '="' . esc_attr( $value ) . '" ';
             }
         }
 
@@ -251,7 +262,17 @@ class Encoding
 
         $link .= '>';
 
-        $link .= ( preg_match( $this->settings()->get_email_regex(), $display) > 0 ) ? $this->get_protected_display( $display, $protection_method ) : $display;
+        // Only scramble the display when it IS the email (classic <a href="mailto:x">x</a> shape).
+        // When the display holds richer content (e.g. a builder-wrapped <span>Email us at x</span>),
+        // keep the markup intact — the final filterPlainEmails pass below entity-encodes any emails
+        // still embedded in it so bots can't harvest them.
+        $display_is_just_email = ( $email !== '' && trim( strip_tags( (string) $display ) ) === $email );
+
+        if ( $display_is_just_email ) {
+            $link .= $this->get_protected_display( $display, $protection_method );
+        } else {
+            $link .= $display;
+        }
 
         $link .= '</a>';
 
@@ -274,10 +295,11 @@ class Encoding
      * Create a protected custom attribute
      *
      * @param string $display
-     * @param array $attrs Optional
+     * @param array< string, string > $attrs Optional
+     * @param string $protection_method
      * @return string
      */
-    public function create_protected_href_att( $display, $attrs = array(), $protection_method = null )
+    public function create_protected_href_att( $display, $attrs = [], $protection_method = null )
     {
         $email     = '';
         $class_ori = ( empty( $attrs['class'] ) ) ? '' : $attrs['class'];
@@ -304,7 +326,7 @@ class Encoding
             if ( strtolower( $key ) === 'href' ) {
                 $link .= $key . '="' . antispambot( $value ) . '" ';
             } else {
-                $link .= $key . '="' . $value . '" ';
+                $link .= esc_attr( $key ) . '="' . esc_attr( $value ) . '" ';
             }
         }
 
@@ -335,14 +357,15 @@ class Encoding
      * - adding no-display spans with dummy values
      * - using the wp antispambot function
      *
-     * @param string|array $display
+     * @param string|array<string> $display
+     * @param string $protection_method
      * @return string Protected display
      */
     public function get_protected_display( $display, $protection_method = null )
     {
 
         $convert_plain_to_image = (bool) $this->getSetting( 'convert_plain_to_image', true, 'filter_body' );
-        $protection_text = __( $this->getSetting( 'protection_text', true ), 'email-encoder-bundle' );
+        $protection_text = (string) $this->getSetting( 'protection_text', true );
         $raw_display = $display;
 
         // get display out of array (result of preg callback)
@@ -351,7 +374,20 @@ class Encoding
         }
 
         if ( $convert_plain_to_image ) {
-            $display = '<img src="' . $this->generate_email_image_url( $display ) . '" />';
+            // generate_email_image_url() requires a bare email address (it runs is_email()
+            // on its input and returns false otherwise). Page builders like WPForms, Divi,
+            // and Elementor commonly wrap the email in HTML (<span>x</span>) or surround
+            // it with copy ("Contact us at x"), which previously produced <img src="">
+            // — the broken image rendered invisibly on the frontend.
+            $email_for_image = $display;
+            if ( ! is_email( (string) $display ) ) {
+                $stripped = wp_strip_all_tags( (string) $display );
+                $email_match = [];
+                if ( preg_match( $this->settings()->get_email_regex(), $stripped, $email_match ) ) {
+                    $email_for_image = $email_match[0];
+                }
+            }
+            $display = '<img src="' . $this->generate_email_image_url( $email_for_image ) . '" />';
         } elseif ( $protection_method !== 'without_javascript' ) {
             $display = $this->dynamic_js_email_encoding( $display, $protection_text );
         } else {
@@ -368,10 +404,10 @@ class Encoding
      * @param string $protection_text
      * @return string the encoded email
      */
-    public function dynamic_js_email_encoding( $email, $protection_text = null )
+    public function dynamic_js_email_encoding( $email, $protection_text = '' )
     {
         $return = $email;
-        $rand = apply_filters( 'eeb/validate/random_encoding', rand( 0, 2 ), $email, $protection_text );
+        $rand = apply_filters( 'eeb/validate/random_encoding', wp_rand( 0, 2 ), $email, $protection_text );
 
         switch ( $rand ) {
             case 2:
@@ -388,16 +424,20 @@ class Encoding
         return $return;
     }
 
+    /**
+     * @param string $display
+     * @return string
+     */
     public function encode_email_css( $display )
     {
         $deactivate_rtl = (bool) $this->getSetting( 'deactivate_rtl', true, 'filter_body' );
 
         // $this->log( 'display: ' . $display );
-        $stripped_display = strip_tags( $display );
+        $stripped_display = wp_strip_all_tags( $display );
         $stripped_display = html_entity_decode( $stripped_display );
 
         $length = strlen( $stripped_display );
-        $interval = ceil( min( 5, $length / 2 ) );
+        $interval = (int) ceil( min( 5, $length / 2 ) );
         $offset = 0;
         $dummy_data = time();
         $protected = '';
@@ -416,17 +456,31 @@ class Encoding
         while ( $offset < $length ) {
             $protected .= '<span class="eeb-sd">' . antispambot( substr( $rev, $offset, $interval ) ) . '</span>';
 
-            // setup dummy content
-            $protected .= '<span class="eeb-nodis">' . $dummy_data . '</span>';
+            // Dummy content between real segments confuses scrapers. It's kept hidden from
+            // humans via CSS, but we also inline display:none so it never leaks as visible
+            // text if the plugin's stylesheet fails to load (page builders that defer/strip
+            // CSS, caching layers, or other plugins dropping the eeb-css-frontend handle).
+            $protected .= '<span class="eeb-nodis" style="display:none">' . $dummy_data . '</span>';
             $offset += $interval;
         }
 
-        $protected = '<span class="' . $protection_classes . '">' . $protected . '</span>';
+        // Inline the bidi-override / word-break styles for the same reason the dummy spans
+        // inline display:none — the email must still render correctly (forward, not reversed)
+        // when the stylesheet isn't loaded.
+        $wrapper_style = $deactivate_rtl
+            ? 'word-break:break-all'
+            : 'unicode-bidi:bidi-override;direction:rtl';
+
+        $protected = '<span class="' . $protection_classes . '" style="' . $wrapper_style . '">' . $protected . '</span>';
 
         return $protected;
     }
 
-    public function email_to_image( $email, $image_string_color = 'default', $image_background_color = 'default', $alpha_string = 0, $alpha_fill = 127, $font_size = 4 )
+
+    /**
+     * @return string
+     */
+    public function email_to_image( string $email, string $image_string_color = 'default', string $image_background_color = 'default', int $alpha_string = 0, int $alpha_fill = 127, int $font_size = 4 )
     {
 
         $setting_image_string_color = (string) $this->getSetting( 'image_color', true, 'image_settings' );
@@ -434,13 +488,9 @@ class Encoding
         $image_text_opacity = (int) $this->getSetting( 'image_text_opacity', true, 'image_settings' );
         $image_background_opacity = (int) $this->getSetting( 'image_background_opacity', true, 'image_settings' );
         $image_font_size = (int) $this->getSetting( 'image_font_size', true, 'image_settings' );
-        $image_underline = (int) $this->getSetting( 'image_underline', true, 'image_settings' );
+        $border_height = (int) $this->getSetting( 'image_underline', true, 'image_settings' );
         $border_padding = 0;
         $border_offset = 2;
-        $border_height = ( is_numeric( $image_underline ) && ! empty( $image_underline ) )
-            ? intval( $image_underline )
-            : 0
-        ;
 
         if ( $image_background_color === 'default' ) {
             $image_background_color = $setting_image_background_color;
@@ -449,9 +499,9 @@ class Encoding
         }
 
         $colors = explode( ',', $image_background_color );
-        $bg_red = $colors[0];
-        $bg_green = $colors[1];
-        $bg_blue = $colors[2];
+        $bg_red = max( 0, min( 255, (int) $colors[0] ) );
+        $bg_green = max( 0, min( 255, (int) $colors[1] ) );
+        $bg_blue = max( 0, min( 255, (int) $colors[2] ) );
 
         if ( $image_string_color === 'default' ) {
             $image_string_color = $setting_image_string_color;
@@ -460,9 +510,9 @@ class Encoding
         }
 
         $colors = explode( ',', $image_string_color );
-        $string_red = $colors[0];
-        $string_green = $colors[1];
-        $string_blue = $colors[2];
+        $string_red = max( 0, min( 255, (int) $colors[0] ) );
+        $string_green = max( 0, min( 255, (int) $colors[1] ) );
+        $string_blue = max( 0, min( 255, (int) $colors[2] ) );
 
         if (
             ! empty( $image_text_opacity )
@@ -471,6 +521,7 @@ class Encoding
         ) {
             $alpha_string = intval( $image_text_opacity );
         }
+        $alpha_string = max( 0, min( 127, $alpha_string ) );
 
         if (
             ! empty( $image_background_opacity )
@@ -479,30 +530,31 @@ class Encoding
         ) {
             $alpha_fill = intval( $image_background_opacity );
         }
+        $alpha_fill = max( 0, min( 127, $alpha_fill ) );
 
         if ( ! empty( $image_font_size ) && $image_font_size >= 1 && $image_font_size <= 5 ) {
             $font_size = intval( $image_font_size );
         }
 
-        $img_width = imagefontwidth( $font_size ) * strlen( $email );
+        $img_width = max( 1, imagefontwidth( $font_size ) * strlen( $email ) );
         $img_height = imagefontheight( $font_size );
 
         if ( ! empty( $border_height ) ) {
-            $img_real_height = $img_height + $border_offset + $border_height;
+            $img_real_height = max( 1, $img_height + $border_offset + $border_height );
         } else {
-            $img_real_height = $img_height;
+            $img_real_height = max( 1, $img_height );
         }
 
         $img = imagecreatetruecolor( $img_width, $img_real_height );
         imagesavealpha( $img, true );
-        imagefill( $img, 0, 0, imagecolorallocatealpha ($img, $bg_red, $bg_green, $bg_blue, $alpha_fill ) );
+        imagefill( $img, 0, 0, max( 0, imagecolorallocatealpha($img, $bg_red, $bg_green, $bg_blue, $alpha_fill ) ) );
         imagestring(
             $img,
             $font_size,
             0,
             0,
             $email,
-            imagecolorallocatealpha( $img, $string_red, $string_green, $string_blue, $alpha_string )
+            max( 0, imagecolorallocatealpha( $img, $string_red, $string_green, $string_blue, $alpha_string ) )
         );
 
 
@@ -514,7 +566,7 @@ class Encoding
                 $border_offset + $img_height + $border_height - 1,
                 $border_padding + $img_width,
                 $border_offset + $img_height,
-                $border_fill
+                max( 0, $border_fill )
             );
         }
 
@@ -522,10 +574,16 @@ class Encoding
         imagepng( $img );
         imagedestroy( $img );
 
-        return ob_get_clean ();
+        return (string) ob_get_clean();
     }
 
-    public function generate_email_signature( $email, $secret )
+
+    /**
+     * @param string $email
+     * @param string $secret
+     * @return string|bool
+     */
+    public function generate_email_signature( string $email, string $secret )
     {
 
         if ( ! $secret ) {
@@ -537,15 +595,18 @@ class Encoding
         return base64_encode( hash_hmac( $hash_signature, $email, $secret, true ) );
     }
 
-    public function generate_email_image_url( $email )
+    /**
+     * @param string $email
+     * @return string|bool
+     */
+    public function generate_email_image_url( ?string $email )
     {
-
         if ( ! function_exists( 'imagefontwidth' ) || empty( $email ) || ! is_email( $email ) ) {
             return false;
         }
 
         $secret = $this->settings()->get_email_image_secret();
-        $signature = $this->generate_email_signature( $email, $secret );
+        $signature = (string) $this->generate_email_signature( $email, $secret );
         $url = home_url();
         $url .= '?eeb_mail=' . urlencode( base64_encode( $email ) );
         $url .= '&eeb_hash=' . urlencode( $signature );

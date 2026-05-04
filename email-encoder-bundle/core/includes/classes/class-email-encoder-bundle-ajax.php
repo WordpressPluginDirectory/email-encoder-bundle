@@ -2,6 +2,8 @@
 
 namespace Legacy\EmailEncoderBundle;
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 use OnlineOptimisation\EmailEncoderBundle\Traits\PluginHelper;
 
 class Email_Encoder_Ajax{
@@ -26,10 +28,13 @@ class Email_Encoder_Ajax{
             add_action( 'wp_ajax_eeb_get_email_form_output', [ $this, 'handle' ] );
         }
 
-        if ( (bool) $EEB->settings->get_setting( 'encoder_form_frontend', true, 'encoder_form' ) ) {
-            add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_scripts' ] );
-            add_action( 'wp_ajax_nopriv_eeb_get_email_form_output', [ $this, 'handle' ] );
-        }
+        // The [eeb_form] shortcode and eeb_form() template tag are always
+        // available on the frontend; the public AJAX endpoint always
+        // listens. The form JS is enqueued lazily by EncoderForm itself
+        // when the form actually renders — covers shortcodes in widgets,
+        // FSE blocks, theme files, and template-tag calls without
+        // scanning post_content site-wide.
+        add_action( 'wp_ajax_nopriv_eeb_get_email_form_output', [ $this, 'handle' ] );
     }
 
 
@@ -42,7 +47,7 @@ class Email_Encoder_Ajax{
             'eeb-js-ajax-ef',
             EEB_PLUGIN_URL . 'core/includes/assets/js/encoder-form.js',
             [ 'jquery' ],
-            $ver,
+            (string) $ver,
             true
         );
 
@@ -65,7 +70,7 @@ class Email_Encoder_Ajax{
         $EEB       = Email_Encoder::instance();
 
         $class     = esc_attr( $this->getSetting( 'class_name', true ) );
-        $protect   = __( $this->getSetting( 'protection_text', true ), 'email-encoder-bundle' );
+        $protect   = (string) $this->getSetting( 'protection_text', true );
         $link      = '<a href="mailto:' . $email . '" class="' . $class . '">' . $display . '</a>';
 
         switch ( $method ) {
@@ -85,6 +90,7 @@ class Email_Encoder_Ajax{
         // wp_send_json_success( apply_filters('eeb/ajax/encoder_form_response', $link) );
 
         # @TODO: Old way
+        // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Output is encoded email HTML built with antispambot/rot13/escape encoding; escaping would break the protection.
         echo apply_filters('eeb/ajax/encoder_form_response', $link);
         exit;
     }

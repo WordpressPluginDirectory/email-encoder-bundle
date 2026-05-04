@@ -17,11 +17,16 @@ class EmailShortcode
     }
 
 
+    /**
+     * @param array< string, string > $atts
+     * @param string $content
+     * @return string
+     */
     public function handle( array $atts = [], ?string $content = null ): string
     {
         _doing_it_wrong(
             __METHOD__,
-            sprintf( 'The [%s] shortcode is deprecated. Use [%s] instead.', $this->tag, $this->newTag ),
+            sprintf( 'The [%s] shortcode is deprecated. Use [%s] instead.', esc_html( $this->tag ), esc_html( $this->newTag ) ),
             '2.3.0'
         );
 

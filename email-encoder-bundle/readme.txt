@@ -4,7 +4,7 @@ Tags: anti spam, protect, encode, encrypt, hide, antispam, phone number, spambot
 Requires at least: 4.7
 Requires PHP: 7.4
 Tested up to: 6.9
-Stable tag: 2.4.2
+Stable tag: 2.5.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Author URI: https://wpemailencoder.com/
@@ -126,13 +126,58 @@ Yes, since version 1.3.0 also special characters are supported.
 
 == Changelog ==
 
-= 2.4.2: January 16, 2025 =
+= 2.5.0: May 4, 2026 =
+* Feature: Redesigned settings page — branded header with logo and version, modern layout, friendlier form controls
+* Feature: Reorganised settings into clearer tabs, including a dedicated Exclusions tab and a tidied-up Tools tab housing the Manual Email Encoder
+* Feature: Active tab now persists in the URL so refreshes and shared links land in the right place
+* Feature: Save confirmations now appear as a centered toast instead of a top-of-page banner
+* Feature: Header action buttons for Email Protection Checker, Documentation, Report a Problem, Copy Support Info, and Leave a Review, each with hover tooltips
+* Feature: Help content moved inline into a dedicated Help tab
+* Fix: Toggling the "Show this page in the main menu item" setting no longer triggers a PHP deprecation notice from WordPress core
+* Fix: Unchecked checkboxes now persist their off state correctly
+* Fix: Insufficient-permissions message is now translatable
+* Fix: Several minor accessibility, focus-state, and translation polish items across the admin UI
+
+= 2.4.8: April 29, 2026 =
+* Fix: Emails inside `<select>` dropdown options now display correctly in Firefox (and consistently across all browsers)
+* Fix: Rich-text and styled markup inside mailto links (Divi 4 Text modules, Divi 5 Link blocks, etc.) is now preserved instead of being replaced with the encoded email
+* Fix: Emails with mailto links now render correctly in image-encoding mode when used with page builders such as WPForms and Elementor
+* Fix: Encoded emails using "best method (JavaScript disabled)" no longer show stray timestamp characters when the plugin's stylesheet is deferred or stripped by caching/builder layers
+
+= 2.4.7: April 22, 2026 =
+* Security: Escaped `data-enc-email` attribute output to close XSS bypass reported by WPScan (CVE-2026-2840 follow-up)
+
+= 2.4.6: April 8, 2026 =
+* Fix: Resolved _load_textdomain_just_in_time warning on WordPress 6.7+
+* Feature: Added "Copy Support Info" button to admin sidebar for easier support diagnostics
+* Tweak: Improved settings loading performance with two-phase initialization
+
+= 2.4.5: March 30, 2026 =
+* Security: Fixed stored XSS vulnerability in eeb_mailto shortcode (CVE-2026-2840)
+* Security: Replaced unsafe JavaScript execution with innerHTML in escape encoding method
+* Security: Added output escaping for protection text in noscript blocks
+* Security: Added attribute escaping in link construction methods
+* Security: Improved input sanitization in template functions
+* Fix: Fixed PHP 8.4 deprecation warning for implicit nullable parameter
+* Fix: Fixed license mismatch between plugin header and readme
+* Tweak: Resolved all WordPress Plugin Check issues
+* Tweak: Replaced deprecated PHP functions with WordPress equivalents
+
+= 2.4.4: February 16, 2026 =
+* Fix: Fixed bug with Events Calendar integration when filtered email is not defined
+
+= 2.4.3: February 3, 2026 =
+* Change: Significant internal improvements for long-term stability and maintainability
+* Fix: Reduced potential edge-case errors
+* Tweak: Improved consistency of internal validation logic
+
+= 2.4.2: January 16, 2026 =
 * Fix: Bug with pulling settings too early in the init hook that can cause compatibility issues with other plugins
 
-= 2.4.1: January 15, 2025 =
+= 2.4.1: January 15, 2026 =
 * Fix: Fixed bug where get_settings() method can fail under special conditions
 
-= 2.4.0: January 8, 2025 =
+= 2.4.0: January 8, 2026 =
 * Fix: Bug fixes
 
 = 2.3.9: December 30, 2025 =

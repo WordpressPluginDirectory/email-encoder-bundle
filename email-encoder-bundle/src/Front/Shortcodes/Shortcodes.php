@@ -2,6 +2,8 @@
 
 namespace OnlineOptimisation\EmailEncoderBundle\Front\Shortcodes;
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 use OnlineOptimisation\EmailEncoderBundle\Traits\PluginHelper;
 
 class Shortcodes
@@ -27,6 +29,8 @@ class Shortcodes
         ];
 
         foreach ( $shortcodes as $shortcode ) {
+            if ( $shortcode->tag() === '' ) continue;
+
             add_shortcode( $shortcode->tag(), [ $shortcode, 'handle' ] );
         }
     }

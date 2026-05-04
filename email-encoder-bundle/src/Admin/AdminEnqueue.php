@@ -2,6 +2,8 @@
 
 namespace OnlineOptimisation\EmailEncoderBundle\Admin;
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 use OnlineOptimisation\EmailEncoderBundle\Traits\PluginHelper;
 
 class AdminEnqueue
@@ -30,6 +32,10 @@ class AdminEnqueue
             $js_version,
             true
         );
+
+        wp_localize_script( 'eeb-admin-scripts', 'eebAdmin', [
+            'copyFallbackPrompt' => __( 'Copy this text:', 'email-encoder-bundle' ),
+        ] );
 
         # CSS
         $css_version = md5_file( $this->assetCssDir( 'style-admin.css' ) );
